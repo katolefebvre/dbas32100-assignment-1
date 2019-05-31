@@ -1,0 +1,179 @@
+File Name:          KatoLefebvreDBAS32100Assignment1.sql
+Author:             Kato Lefebvre
+Oracle Username:    s11_lefebvka
+Description:        DBAS32100 - Assignment 1
+
+SET LINESIZE 132
+SET PAGESIZE 255
+
+1. Print the total amount, the average dollar value of service visits (parts and labour costs)and the number of those visits for 
+Acura, Mercedes and Jaguar car makes that are sold between May 2017 and August 2017 inclusive.
+
+SELECT
+    c.carmake,
+    COUNT(c.carmake) AS count,
+    TO_CHAR(AVG(s.partscost + s.laborcost), '$999.99') AS average_cost,
+    COUNT(s.servdate) AS number_of_visits
+FROM
+    si.car       c
+    INNER JOIN si.servinv   s ON c.carserial = s.carserial
+WHERE
+    upper(carmake) IN (
+        'ACURA',
+        'MERCEDES',
+        'JAGUAR'
+    )
+    AND ( s.servdate >= '2017-05-01'
+          AND s.servdate <= '2017-08-01' )
+GROUP BY
+    c.carmake;
+
+------- Output Begins -------
+
+CARMAKE         COUNT AVERAGE_ NUMBER_OF_VISITS
+---------- ---------- -------- ----------------
+MERCEDES            4  $795.14                4
+ACURA               2  $550.00                2
+JAGUAR              3  $316.67                3
+
+-------  Output Ends  -------
+
+2. SI database contains customers that have bought one or more vehicles. They can be classified using the following criteria:
+	a. Customers that have bought only one car (one-time buyer)
+	b. Customers that have bought two cars (two-time buyer)
+	c. Customers that have bought more than two cars (frequent buyer)
+Display a list of customers with their names and what type of buyer they are for all those customers that have bought Jaguar 
+car makes.
+
+SELECT
+    cust.custname,
+    COUNT(cust.custname) AS count,
+    CASE
+        WHEN COUNT(cust.custname) = 2 THEN
+            'Two Time Buyer'
+        WHEN COUNT(cust.custname) > 2 THEN
+            'Frequent Buyer'
+        ELSE
+            'One Time Buyer'
+    END AS "BUYER TYPE"
+FROM
+    si.customer   cust
+    INNER JOIN si.car        car ON cust.custname = car.custname
+WHERE
+    upper(car.carmake) = 'JAGUAR'
+GROUP BY
+    cust.custname
+ORDER BY
+    "COUNT";
+    
+------- Output Begins -------
+
+CUSTNAME                  COUNT BUYER TYPE    
+-------------------- ---------- --------------
+XANDER BOURG                  1 One Time Buyer
+PETER                         1 One Time Buyer
+LEON LEUNG                    1 One Time Buyer
+<91 rows deleted...>
+GARY HALBIG                   3 Frequent Buyer
+PATRICK SIMMONS               5 Frequent Buyer
+CARL EDWARDS                 18 Frequent Buyer
+
+-------  Output Ends  -------
+
+3. Using SET operations, display a list of customers that are interested in a car (prospect table) of the same make and model 
+which they already own.
+
+SELECT
+    c.custname,
+    c.carmake
+FROM
+    si.car        c
+    LEFT OUTER JOIN si.prospect   p ON c.carmake = p.carmake
+WHERE
+    c.carmake = p.carmake
+INTERSECT
+SELECT
+    p.custname,
+    p.carmake
+FROM
+    si.prospect   p
+    LEFT OUTER JOIN si.car        c ON c.carmake = p.carmake
+WHERE
+    c.carmake = p.carmake;
+
+------- Output Begins -------
+
+CUSTNAME             CARMAKE   
+-------------------- ----------
+ADAM                 LAND ROVER
+AMANDEEP             LAND ROVER
+AZIZ AYBOUT          LAND ROVER
+<4 rows deleted...>
+SMARTH ARORA         LAND ROVER
+STEPAN NADEINE       LAND ROVER
+VALERIYA             LAND ROVER
+
+-------  Output Ends  -------
+
+4. Show a list of total amount of money spent on service for Toyota cars. Show the subtotals for each model.
+
+SELECT
+    c.carmake,
+    c.carmodel,
+    SUM(srv.partscost + srv.laborcost) AS total_money_spent
+FROM
+    si.servinv   srv
+    INNER JOIN si.car       c ON c.custname = srv.custname
+WHERE
+    upper(c.carmake) = 'TOYOTA'
+GROUP BY
+    ROLLUP(c.carmake,
+           c.carmodel)
+ORDER BY
+    total_money_spent;
+    
+------- Output Begins -------
+
+CARMAKE    CARMODEL TOTAL_MONEY_SPENT
+---------- -------- -----------------
+TOYOTA     TL                       0
+TOYOTA     YARIS                  359
+TOYOTA     SEQUIOA                600
+TOYOTA     4RUNNER                635
+TOYOTA     PRIUS                 2170
+TOYOTA     COROLLA            3362.86
+TOYOTA     CAMRY                12005
+                             19131.86
+TOYOTA                       19131.86
+
+-------  Output Ends  -------
+
+5. Write a query using analytic functions that will show the serial number, the sale price of each Jaguar car as well as the 
+cumulative price totals.
+
+SELECT
+    carserial,
+    carlistprice,
+    SUM(carlistprice) OVER(
+        ORDER BY
+            carserial
+        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) AS pricetotal
+FROM
+    si.car
+WHERE
+    upper(carmake) = 'JAGUAR';
+
+------- Output Begins -------
+
+CARSERIA CARLISTPRICE PRICETOTAL
+-------- ------------ ----------
+A17OXEV1        24000      24000
+J00RXJ81         1200      25200
+J01BXJR8        19999      45199
+<154 rows deleted...>
+J95BXJ1      93283.23 8144464.99
+J95BXJ2      93283.23 8237748.22
+J97BJL0         77350 8315098.22
+
+-------  Output Ends  -------
